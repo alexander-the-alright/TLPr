@@ -1,17 +1,1 @@
-you,ты
-city,город
-we,мы
-he,он
-apple,яблоко
-you all,вы
-milk,молоко
-﻿you,ты
-dad,папа
-bread,хлеб
-﻿cat,кошка
-bear,медведь
-she,она
-duck,утка
-plan,план
-i,я
-mom,мама
+﻿

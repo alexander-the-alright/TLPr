@@ -4,7 +4,7 @@
  ===============================================================================
  Auth: Sam Celani
  Prog: tlpr.py
- Revn: 04-16-2019 Ver 0.0
+ Revn: 04-21-2019 Ver 0.1
  Func: 
 
  TODO: COMMENTS
@@ -33,31 +33,34 @@
                 removed input to fileUpdate(), added Deprecate to TODO
                 added note to install delimiter in add() and edit()
                 added note to allow multiple translations in add
+*04-21-2019:    made data containment format to be a list of lists, no delim
                 
 
 
  ===============================================================================
  DATA CONTAINMENT FORMAT
  -------------------------------------------------------------------------------
- { english : 'russian1, russian2, ...,|, metaData1, metaData2, ...' }
-
-###
-### CONSIDER REMOVING N RUSSIAN WORDS AND THEIR CASES IN SEPARATE LISTS
-### THIS WOULD ALLOW REMOVAL OF THE DELIMITER!!!!!
-###
+ { english : [['russian1', ...], ['metaData1', ...], ['metaData2', ...], ...] }
 
  Data is stored in a dictionary { : }
- All data is stored in unicode strings: english, russianN, metaDataN,|
- Strings that aren't 'english' are stored in a comma-separated string ',,,,'
- Split string into list, parse list until the delimiter, |, is found
- Everything after the delimiter is metadata
+ All data is stored in unicode strings: english, russianN, metaDataN
+ The value paired with the key is a stored as a variable-length list
+ Every element in the list is also a list, again of variable length
+ 
+ Everything after the first position is metadata, always length 1
      metaData1 will always be the gender of the word
          m      : Masculine
          f      : Feminine
          n      : Neuter
          None   : Unknown
 
-         The program will attempt to determine the gender, but user can override
+         The program will attempt to determine the gender, but user can override         
+     metaData3 will always be the case of the word, cooresponding to the
+     translation at the same position in the list
+         g      : gentitive
+         a      : accusative
+         p      : propositional
+
      metaData2 will always be the part of the sentence that the word is
          n      : noun
          aj     : adjective
@@ -65,13 +68,7 @@
          v      : verb
          av     : adverb
          
-     metaData3 will always be the case of the word
-         g      : gentitive
-         a      : accusative
-         p      : propositional
-         
     metaData4 begins the topic data
- Parsing is gonna be interesting?
 
 """
 
@@ -143,18 +140,20 @@ def add():
             m += i + ','
         m = m[:-3]
     
-    print( 'Are you sure you want to add (', e, ': [', r, '|', m, '] ) ?' )
-    print( m.split( ',' ) )
+        print( 'Are you sure you want to add (', e, ': [', r, '|', m, '] ) ?' )
+    else:
+        print( 'Are you sure you want to add (', e, ': [', r, '] ) ?' )
+    #print( m.split( ',' ) )
 
-    """
+
     check = input().lower()
     if check == 'yes':
-        data.update( { i : j } )
-        fileUpdate('w')
+        data.update( { e : r } )
+        #fileUpdate('w')
     else:
         print('Add aborted')
     print()
-    """
+
 
 
 """
@@ -198,16 +197,16 @@ def edit():
     elif change in [ 'metadata', 'm' ]:
         print( 'Did you want to edit the gender, case, structure, or none?' )
         dec = input( '>> ' ).lower()
-        if dec is in [ 'gender', 'g' ]:
+        if dec in [ 'gender', 'g' ]:
             gender = input( 'What is the gender of the word?\n>> ' ).lower()
             oldData[0] = gender
-        elif dec is in [ 'structure', 'struct', 's' ]:
+        elif dec in [ 'structure', 'struct', 's' ]:
             struct = input( 'What part of the sentence is the word?\n>> ' ).lower()
             oldData[1] = struct
-        elif dec is in [ 'case', 'c' ]:
+        elif dec in [ 'case', 'c' ]:
             case = input( 'What is the case of the word?\n>> ' ).lower()
             oldData[2] = case
-        elif dec is in [ 'neither', 'n' ]:
+        elif dec in [ 'neither', 'n' ]:
             neither = input( 'What tag did you want to add?\n>> ' ).lower()
             oldData.append(neither)
         else:
@@ -215,7 +214,7 @@ def edit():
             return
         confirm = input( 'Are you sure you want to add ' ).lower()
         print( '%s : %s ?\n>> ' % ( e, str( oldData ) ), end = '' )
-        if confirm is in [ 'yes', 'y' ]:
+        if confirm in [ 'yes', 'y' ]:
             data.update( { e : oldData } )
             #fileUpdate()
             print( 'Entry %s has been updated' % e )
@@ -261,12 +260,13 @@ def init():
     # Open file in unicode 
     file = codecs.open('data.txt', encoding='utf-8')
     for line in file:                   # Iterate over all lines in file
-        e = line.split(',')[0]          # Separate the english word
-        r = line.split(',')[1:]         # Everything but english word is data
-        r = r[-1][:-1]                  # Strip the newline off
-        # Update max length of english word
-        maxLen = len(e) if len(e) > maxLen else maxLen
-        data.update( { e : r } )        # Add to dictionary
+        if not len(line) < 3:
+            e = line.split(',')[0]          # Separate the english word
+            r = line.split(',')[1:]         # Everything but english word is data
+            r = r[1][:-1]                   # Strip the newline off
+            # Update max length of english word
+            maxLen = len(e) if len(e) > maxLen else maxLen
+            data.update( { e : r } )        # Add to dictionary
 
 
 """
@@ -362,7 +362,7 @@ try:
             continue        # Skip to top of loop
         i = i.lower()       # Normalize input
         if i in data:       # If the user input is in the dataset
-            print(data[i]+'\n') # Print it out
+            print('  ', data[i]+'\n') # Print it out
         else:               # If the user input is not in the dataset
             print('Entry', i, 'does not exist\n')
 except KeyboardInterrupt:
