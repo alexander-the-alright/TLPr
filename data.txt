@@ -1,1 +1,4 @@
-﻿
+﻿cat|кошка|X-у,X-е,X-и,X-ой,,X-е|f,-и,n|animal,kneesaa
+tomcat|кот|,у,а,ом,,е|m,-ы,n|animal
+window|окно|,у,а,ом,,е|n,-а,n|house
+house|дом|,у,а,ом,,е|m,-а,n|place,house

@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 
-"""
+readme = u"""
  ===============================================================================
  Auth: Sam Celani
  Prog: tlpr.py
- Revn: 04-21-2019 Ver 0.1
+ Revn: 06-26-2019  Ver 2.3
  Func: 
 
  TODO: COMMENTS
        Write edit, delete, fadd, fedit, fdel
        Merge with original TLP, add switch between languages
-       Add metadata
+       Add verb support
+       Reverse lookup
  ===============================================================================
  CHANGE LOG
  -------------------------------------------------------------------------------
@@ -34,41 +35,77 @@
                 added note to install delimiter in add() and edit()
                 added note to allow multiple translations in add
 *04-21-2019:    made data containment format to be a list of lists, no delim
-                
+ 05-17-2019:    changed data containment format, hopefully last iteration
+                theorized the toString() method for writing data to file
+                prints opening comment header in README.md when script is run
+                let user clear screen, found shell/cmd bug, removed cls code
+ 06-26-2019:    futzed with wording in DATA CONTAINMENT FORMAT
+                added flag to update README and exit
+                finished and commented init()
+                added caseNames global variable to make data file smaller
+ 06-27-2019:    wrote fileUpdate()
+                tested init() and fileUpdate()
+                implemented maxLen in init() when reading words for format print
+                fixed bug where the first entry in a file can't be found
+                    in init(), see ord(eng[0]) > 256
+                show() is no longer showWIP() :)
+                SUCCESFULLY ADDED READ/WRITE OF METADATA
 
 
  ===============================================================================
  DATA CONTAINMENT FORMAT
  -------------------------------------------------------------------------------
- { english : [['russian1', ...], ['metaData1', ...], ['metaData2', ...], ...] }
-
- Data is stored in a dictionary { : }
- All data is stored in unicode strings: english, russianN, metaDataN
- The value paired with the key is a stored as a variable-length list
- Every element in the list is also a list, again of variable length
+ Data Structure
  
- Everything after the first position is metadata, always length 1
-     metaData1 will always be the gender of the word
+ { english : [ russian, { a:X, ... }, [ m/f/n/None, pl, ...], [ topic, ... ] ] }
+
+ Explicit File Storage
+
+ english|russian|X,Y,...|m/f/n/None,pl,...|topic,...\n
+
+
+ Data is stored in a dictionary
+ All data is stored in unicode strings
+ The value paired with the key is a list of length 4
+
+ The first position of the list will always contain the base translation
+
+ Everything after the first position is metadata
+
+     metaData1 will always be a dictionary containing the cases as keys and the
+     ending as values. To denote that a letter is dropped, and not merely
+     added, the ending will contain a capital X before the appending hyphen.
+     The keys are hardcoded as follows.
+         a      : accusative
+         d      : dative
+         g      : gentitive
+         i      : instrumentive
+         n      : nominative
+         p      : propositional
+         
+     metaData2 will always contain firstly the gender of the word. Second is
+     the plural ending of the word (it is assumed the user enters the singular
+     form of the word). Third is the part of a speech. This is all that is
+     strictly defined, more varies.
          m      : Masculine
          f      : Feminine
          n      : Neuter
          None   : Unknown
 
-         The program will attempt to determine the gender, but user can override         
-     metaData3 will always be the case of the word, cooresponding to the
-     translation at the same position in the list
-         g      : gentitive
-         a      : accusative
-         p      : propositional
+         The program will attempt to determine the gender and plural ending
+         when the user is inputting the data, but the user can override.
 
-     metaData2 will always be the part of the sentence that the word is
-         n      : noun
-         aj     : adjective
-         p      : pronoun
-         v      : verb
-         av     : adverb
+         aj     : Adjective
+         av     : Adverb
+         c      : Conjunction
+         i      : Interjection
+         n      : Noun
+         pn     : Pronoun
+         pp     : Preposition
+         v      : Verb
          
-    metaData4 begins the topic data
+     metaData3 begins the topic data. This will contain things like "animal",
+     etc. for use with SHOW command
 
 """
 
@@ -79,10 +116,39 @@
 # ------------------------------------------------------------------------------
 
 
-import os           # Used for clearing the screen
 import codecs       # Used for handling unicode files
+import os           # Used for clearing the screen
+import sys          # Used for looking at command line arguments
 
 
+# ==============================================================================
+#
+#   UPDATE README
+#
+# ------------------------------------------------------------------------------
+
+# Open README for updating every time script is run
+rd = codecs.open( 'README.md', 'w' , encoding = 'utf-8' )
+rd.write( '# TLPr\n' )              # Reprint Title
+rd.write( u'%s' % readme )          # Print comment header
+rd.close()                          # Close file, flush write buffer
+
+
+# ==============================================================================
+#
+#   PARSE FLAGS
+#   TODO:   check for contains, work out differing logic and flow
+# ------------------------------------------------------------------------------
+
+if len(sys.argv) is 2:              # Check for command line flag
+    # If the flag is readme
+    if sys.argv[1].lower() == 'readme':
+        exit()                      # Quit, you've already updated the readme
+    # If the flag is debug
+    elif sys.argv[1].lower() == 'debug':
+        # I don't really know what to do for this, but it might be useful...
+        pass
+    
 # ==============================================================================
 #
 #   FUNCTIONS
@@ -117,9 +183,14 @@ cls = lambda: os.system('cls')  # Call cls through the system
 """
 def add():
     global data
-    meta = [ 'gender', 'case' ]
+
     e = input( 'What word do you want to add?\n>> ' ).lower()
     r = input( 'What does that translate to?\n>> ' ).lower()
+
+
+    
+    meta = [ 'gender', 'case' ]
+
     y = input( 'Is there metadata?\n>> ' ).lower()
     ##
     ## ADD DELIMITER
@@ -224,92 +295,123 @@ def edit():
 
 """
  ===============================================================================
- Revn: 04-20-2019
+ Revn: 06-27-2019
  Func: Rewrite entire file to update 
- Meth: Open with codecs, write each KVP as line
+ Meth: Open with codecs, parse data and metadata, concat into string with
+       special delimiters, write as unicode string
  Args: None
  Retn: None
 
- TODO: Actually add appropriate \n char
-       Deprecate
+ TODO: Comment
  ===============================================================================
 """
 def fileUpdate():
     global data         # Import data
-    # Open file in unicode mode, with variable mode (read/write/append)
-    file = codecs.open('data.txt', 'w' , encoding='utf-8')
-    for key in data:    # Iterate over all keys
-        # Actually write unicode string to file
+    global caseNames    # Import names of different cases
+    # Open file in unicode mode
+    file = codecs.open( 'data.txt', 'w' , encoding='utf-8' )
+    for key in data:                    # Iterate over all keys
+        dataString = ''                 # Make empty string to concat to
+        dataString += key               # Add English word
+        for item in data[key]:          # Iterate over all data attached to word
+            dataString += '|'           # Add pipe delimiter
+            # If not in position 1 (not the case endings)
+            if not data[key].index(item) is 1:
+                for element in item:    # Iterate for all data in metadata field
+                    # Concat data, add comma to delimit distinct in-field data
+                    dataString += element + ','
+            # If dealing with cases, must grab the letters to do a lookup and
+            # write back IN ORDER. IS NOT imperative, but saves space
+            else:
+                for letter in caseNames:
+                    # Dict lookup of case, to ensure order, concat with comma
+                    dataString += data[key][1][letter] + ','
+            dataString = dataString[:-1]    # Remove last hanging comma
+            
         # LOL breaks if I don't use format specificiers RIP
-        file.write(u'%s,%s\n' % (key, data[key]))
+        file.write( u'%s\n' % dataString )
 
 """
  ===============================================================================
- Revn: 04-20-2019
+ Revn: 06-27-2019
  Func: Pull data from file and store in dictionary
- Meth: Open with codecs, read each line as KVP
+ Meth: Open with codecs, parse each line in accordance with DATA CONAINMENT
+       FORMAT, load into data structures, and add to final data container
  Args: None
  Retn: None
 
- TODO:
+ TODO: 
  ===============================================================================
 """
 def init():
     global data                         # Import data
     global maxLen                       # Import max length of english word
+    global caseNames                   # Import names of different cases
+    
     # Open file in unicode 
-    file = codecs.open('data.txt', encoding='utf-8')
-    for line in file:                   # Iterate over all lines in file
-        if not len(line) < 3:
-            e = line.split(',')[0]          # Separate the english word
-            r = line.split(',')[1:]         # Everything but english word is data
-            r = r[1][:-1]                   # Strip the newline off
-            # Update max length of english word
-            maxLen = len(e) if len(e) > maxLen else maxLen
-            data.update( { e : r } )        # Add to dictionary
+    file = codecs.open( 'data.txt', encoding='utf-8' )
+    for line in file:                       # Iterate over all lines in file
+        # Make empty list for Russian word for ease of writeback
+        rus = list()
+        
+        line  = line[:-1].split( '|' )      # Rip out newline, split over pipes
+        eng   = line[0]                     # Save English word
 
+        # First character in file is a weird unicode char with huge ord()
+        if ord( eng[0] ) > 256:             # Get rid of the first character
+            eng = eng[1:]
+
+        # Keep track of longest word with ternary statement for format print
+        maxLen = maxLen if maxLen > len( eng ) else len( eng )
+
+        rus.append( line[1] )               # Save Russian word
+        case  = line[2].split( ',' )        # Make list of case endings
+        meta  = line[3].split( ',' )        # Make list of other metadata
+        topic = line[4][:-1].split( ',' )   # Make list of topic data
+
+        dataIn = list()                     # Make empty list for metadata
+        # Put the Russian word in list for ease of writing back to a file later
+        dataIn.append( rus )                # Add Russian in first position
+
+        c = dict()                          # Make dict for cases and endings
+
+        # Iterate over letters in the string of case names
+        for pos in range( len( caseNames ) ):
+            # Add specific case name and case ending to dict
+            c.update( { caseNames[pos] : case[pos] } )
+
+        dataIn.append(c)                    # Add cases in second position
+        dataIn.append(meta)                 # Add metadata as is in third
+        dataIn.append(topic)                # Add topic data as is last
+        data.update( { eng : dataIn } )     # Add to final data container
 
 """
  ===============================================================================
- Revn: 04-20-2019
+ Revn: 06-27-2019
  Func: Show all translation pairs that pertain to the input topic
  Meth: Iterate over all pairs *sigh* and see if the topic is tied to it
  Args: str topic: string to search all metadata for
  Retn: None
 
- TODO: Test, format print based on length
+ TODO: 
  ===============================================================================
 """
-def showWIP( topic ):
+def show( topic ):
     global data                                 # Import data
     global maxLen                               # Import max length of word
 
-    tabNum = maxLen // 8                        # Calculate apt number of tabs
+    tabNum = ( maxLen // 8 ) + 1                # Calculate apt number of tabs
 
     print( '\n', topic.upper(), '\n' )          # Print topic in all caps
     for key in data:                            # Iterate over all english words
-        for entry in data[key]:                 # Iterate over associated data
+        for entry in data[key][3]:              # Iterate over associated data
             if entry == topic:                  # If data matches input
                 print( key, end = '' )          # Print english word
                 for number in range(tabNum):    # Iterate by amnt. tabs needed
                     print( '\t', end = '' )     # Print a tab, no newline
-                print( ': ', data[key] )        # Print translation
+                print( ':', data[key][0][0] )   # Print translation
 
-"""
- ===============================================================================
- Revn: 04-20-2019
- Func: show
- Meth: Iterate over KVPs, print
- Args: None
- Retn: None
-
- TODO: Deprecate
- ===============================================================================
-"""
-def show( topic ):
-    global data                     # Import data
-    for key in data:                # Iterate over all keys
-        print(key, ':', data[key])  # Dump all entries
+    print()
 
 # ==============================================================================
 #
@@ -317,17 +419,25 @@ def show( topic ):
 #
 # ------------------------------------------------------------------------------
 
-data = {}
-maxLen = 0
+data = {}           # Master data container
+maxLen = 0          # Init max English word length, for formatted printing
 
+####
+#### Consider making cases a list...
+####
+caseNames = 'adginp'    # First letter of each case, for reading for file
+
+# Basic help prompt
 helpM = 'What word do you want to look up?\nType HELP for help.\n>> '
-instr = '''Type ADD to add a new entry
+# In-depth help prompt
+instr ='''Type ADD to add a new entry
 Type EDIT to edit an existing entry
 Type SHOW <topic> to show all entries relating to that topic
 Type EXIT or QUIT to close the program
 Type HELP to display this message'''
+#Type CLS to clear the screen'''
 
-i = ''
+i = ''      # Init string to hold user input
 
 ### ============================================================================
 ###
@@ -356,13 +466,17 @@ try:
         if i == 'EDIT':     # If user wants to edit an entry
             edit()          # Begin edit procedure
             continue        # Skip to top of loop
+        # CLS doesn't work because this runs in the shell
+##        if i == 'CLS':      # If user wants to clear the screen
+##            cls()           # Call clear lambda function
+##            continue        # Skip to top of loop
         if i[:4] == 'SHOW': # If user wants to dump metadata
             # Only grab the first word after SHOW
-            show(i[5:].split(' ')[0])   # Dump everything related to metadata
+            show(i[5:].split(' ')[0])   # Dump words related to metadata
             continue        # Skip to top of loop
-        i = i.lower()       # Normalize input
+        i = i.lower()       # Force input to be lowercase
         if i in data:       # If the user input is in the dataset
-            print('  ', data[i]+'\n') # Print it out
+            print( data[i][0][0], '\n')     # Print it out
         else:               # If the user input is not in the dataset
             print('Entry', i, 'does not exist\n')
 except KeyboardInterrupt:
