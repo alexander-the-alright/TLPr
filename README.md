@@ -3,14 +3,13 @@
  ===============================================================================
  Auth: Sam Celani
  Prog: tlpr.py
- Revn: 06-26-2019  Ver 2.3
+ Revn: 07-11-2019  Ver 3.0
  Func: 
 
  TODO: COMMENTS
-       Write fileUpdate
        Write edit, delete, fadd, fedit, fdel
+       Add plural declension
        Merge with original TLP, add switch between languages
-       Add metadata
        Add verb support
        Reverse lookup
  ===============================================================================
@@ -43,15 +42,36 @@
  06-26-2019:    futzed with wording in DATA CONTAINMENT FORMAT
                 added flag to update README and exit
                 finished and commented init()
-                added casesNames global variable to make data file smaller
-
+                added caseNames global variable to make data file smaller
+ 06-27-2019:    wrote fileUpdate()
+                tested init() and fileUpdate()
+                implemented maxLen in init() when reading words for format print
+                fixed bug where the first entry in a file can't be found
+                    in init(), see ord(eng[0]) > 256
+                show() is no longer showWIP() :)
+                SUCCESFULLY ADDED READ/WRITE OF METADATA
+ 07-03-2019:    begin rewriting add() to work with metadata, and correct auto
+                    settings when caseEngine is wrong
+                removed plural ending from Data Structure for now, as it varies
+                    with case, and will eventually be appended after declension
+ 07-08-2019:    finished add() in 131 lines!
+                updated Data Structure in DATA CONTAINMENT FORMAT to show
+                    translated word is in a list, to better reflect actual
+                    storage
+ 07-09-2019:    replaced iterative lookup in show() with in keyword
+                added support for SHOW all command to dump all entries
+                added boolean update flag to do file writeback before successful
+                    exit, added file writeback in main loop
+                began adding comments to add()
+*07-11-2019:    replaced X with - as negative space character in add()
+                finished commenting add()
 
  ===============================================================================
  DATA CONTAINMENT FORMAT
  -------------------------------------------------------------------------------
  Data Structure
  
- { english : [ russian, { a:X, ... }, [ m/f/n/None, pl, ...], [ topic, ... ] ] }
+ { english : [ [ russian ], { a:X, ... }, [ m/f/n/None, ...], [ topic, ... ] ] }
 
  Explicit File Storage
 
@@ -79,9 +99,7 @@
          p      : propositional
          
      metaData2 will always contain firstly the gender of the word. Second is
-     the plural ending of the word (it is assumed the user enters the singular
-     form of the word). Third is the part of a speech. This is all that is
-     strictly defined, more varies.
+     the part of a speech. This is all that is strictly defined, more varies.
          m      : Masculine
          f      : Feminine
          n      : Neuter

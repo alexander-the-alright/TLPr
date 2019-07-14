@@ -4,11 +4,12 @@ readme = u"""
  ===============================================================================
  Auth: Sam Celani
  Prog: tlpr.py
- Revn: 06-26-2019  Ver 2.3
+ Revn: 07-11-2019  Ver 3.0
  Func: 
 
  TODO: COMMENTS
        Write edit, delete, fadd, fedit, fdel
+       Add plural declension
        Merge with original TLP, add switch between languages
        Add verb support
        Reverse lookup
@@ -50,14 +51,28 @@ readme = u"""
                     in init(), see ord(eng[0]) > 256
                 show() is no longer showWIP() :)
                 SUCCESFULLY ADDED READ/WRITE OF METADATA
-
+ 07-03-2019:    begin rewriting add() to work with metadata, and correct auto
+                    settings when caseEngine is wrong
+                removed plural ending from Data Structure for now, as it varies
+                    with case, and will eventually be appended after declension
+ 07-08-2019:    finished add() in 131 lines!
+                updated Data Structure in DATA CONTAINMENT FORMAT to show
+                    translated word is in a list, to better reflect actual
+                    storage
+ 07-09-2019:    replaced iterative lookup in show() with in keyword
+                added support for SHOW all command to dump all entries
+                added boolean update flag to do file writeback before successful
+                    exit, added file writeback in main loop
+                began adding comments to add()
+*07-11-2019:    replaced X with - as negative space character in add()
+                finished commenting add()
 
  ===============================================================================
  DATA CONTAINMENT FORMAT
  -------------------------------------------------------------------------------
  Data Structure
  
- { english : [ russian, { a:X, ... }, [ m/f/n/None, pl, ...], [ topic, ... ] ] }
+ { english : [ [ russian ], { a:X, ... }, [ m/f/n/None, ...], [ topic, ... ] ] }
 
  Explicit File Storage
 
@@ -84,9 +99,7 @@ readme = u"""
          p      : propositional
          
      metaData2 will always contain firstly the gender of the word. Second is
-     the plural ending of the word (it is assumed the user enters the singular
-     form of the word). Third is the part of a speech. This is all that is
-     strictly defined, more varies.
+     the part of a speech. This is all that is strictly defined, more varies.
          m      : Masculine
          f      : Feminine
          n      : Neuter
@@ -116,6 +129,7 @@ readme = u"""
 # ------------------------------------------------------------------------------
 
 
+import caseEngine   # Used for parsing Russian words, determining gender and 
 import codecs       # Used for handling unicode files
 import os           # Used for clearing the screen
 import sys          # Used for looking at command line arguments
@@ -171,61 +185,198 @@ cls = lambda: os.system('cls')  # Call cls through the system
 
 """
  ===============================================================================
- Revn: 04-20-2019
+ Revn: 07-08-2019
  Func: Prompt user for new translation, update dict, update file
- Meth: Two inputs, add to global data using update()
+ Meth: 
  Args: None
  Retn: None
 
  TODO: Comment
-       ADD DELIMITER
+       Remove, and make external module
+       Add gender and part of speech to topic, deprecate attribute list??
+       Fix topic, so user doesn't need to enter END to finish
  ===============================================================================
 """
-def add():
-    global data
+def add( e = None ):
+    global data         # Grab global data so information can be written back
+    global update       # If file is updated, set update flag
 
-    e = input( 'What word do you want to add?\n>> ' ).lower()
+    dataList = []       # Store all new data before updating old data
+    attributeList = []  # Store gender and part of speech ( for now )
+    topicList = []      # Store topic metadata
+    
+    if e is None:       # If no input is explicitly given...
+        # explicitly ask for one
+        e = input( 'What word do you want to add?\n>> ' ).lower()
+    else:
+        e = e.lower()   # Otherwise, just force lowercase
+
+    # Ask user for translation
     r = input( 'What does that translate to?\n>> ' ).lower()
 
-
+    dataList.append( [ r ] )    # Put translation in list, and add to new data
     
-    meta = [ 'gender', 'case' ]
+    gender = caseEngine.parse( r )  # Outsource determining gender
 
-    y = input( 'Is there metadata?\n>> ' ).lower()
-    ##
-    ## ADD DELIMITER
-    ## ALLOW VARIABLE TRANSLATIONS
-    ##
-    if y in [ 'y', 'yes', 'yeet' ]:
-        m = ''
-        i = 'init'
+    # Probe user for confirmation
+    print( 'Gender automatically found to be %s. Is this correct?' % gender )
+    decision = input('>> ').lower() # Grab answer, force lowercase
 
-        for dataType in meta:
-            print( 'What data do you want for %s?' % dataType ) 
-            i = input( 'Enter TOPIC to skip to topic. Enter X to quit.\n' )
-            if i in [ 'X', 'TOPIC' ]:
-                break
-            m += i.lower() + ','
-        while not i == 'X':
-            i = input( 'What data do you want for topic? Enter X to quit.\n' )
-            m += i + ','
-        m = m[:-3]
-    
-        print( 'Are you sure you want to add (', e, ': [', r, '|', m, '] ) ?' )
+    ## Probably a way to do this with like 5 less lines, but if it aint broke...
+    # If user answered in the affirmative
+    if decision in [ 'y', 'ye', 'yes', 'yeah', 'yeet' ]:
+        attributeList.append( gender )  # Store gender in list
+    else:   # User answer in negative
+        # Prompt user for actual gender
+        print( 'What is the actual gender of %s?' % r )
+        gender = input( '>> ' ).lower() # Force input to lowercase
+
+        # If masculine, store masculine
+        if gender in [ 'm', 'masc', 'masculine' ]:
+            attributeList.append( 'masculine' )
+        # If feminine, store feminine
+        elif gender in [ 'f', 'fem', 'feminine' ]:
+            attributeList.append( 'feminine' )
+        # If neuter, store neuter
+        elif gender in [ 'n', 'neut', 'neuter' ]:
+            attributeList.append( 'neuter' )
+        # Otherwise, just say None
+        else:
+            print( 'Input gender not recognized.' )
+            attributeList.append( None )
+
+    print( '\nDeclension automatically found to be as follows.\n' )
+    # Outsource printing declension to caseEngine.endings
+    endings = caseEngine.endings( r, gender )
+    # Ask user if it looks right
+    # Spoiler Alert: It's not, Russian is permanently irregular WOOOOOO
+    print( 'Is this correct?' )
+
+    decision = input('>> ').lower()
+    # Get decision, loop until user is happy
+    # because multiple cases may be incorrect
+    while decision not in [ 'y', 'ye', 'yes', 'yeah', 'yeet' ]:
+        print( 'Which case ending is incorrect?' )
+        # Print each case abbreviation
+        for key in endings:
+            print( key, end=' ' )
+        print()
+        # Get user feedback on which is wrong
+        case = input( '>> ' ).lower()
+        # If it's not an acceptable answer, prompt
+        if case not in endings.keys():
+            print( 'Input case not recognized.' )
+        # Else, prompt user for real declension
+        else:
+            print( 'What is the appropriate ending?' )
+            # Don't sanitize input, just added it
+            endings[case] = input( '>> ' )
+
+            ## Print new declension
+            for key in endings.keys():          # Iterate over different cases
+                strip = endings[key].count('-') # Keep track of amount of -'s
+                                                # ( letters to get rid of )
+                print( key, ' : ', end = '' )   # Print just the case
+                if not strip is 0:              # If there are -'s in the ending
+                    # Print everything but the last few letters
+                    print( r[:-1*strip], end = '' )
+                else:                           # If there are no -'s in ending
+                    print( r, end = '' )        # Print the whole word
+                # Finally, print the case-by-case ending
+                print( endings[key][strip:] )
+            print()
+
+        # Ask user if satisfied, loop if not
+        print( 'Is this correct?' )
+        decision = input('>> ').lower()
+
+    dataList.append( endings )      # Finish declension, add to working dataset
+
+    ## Prompt about part of speech
+    print( '\nWhat part of speech is %s?\n' % r )
+    print('aj\t: Adjective\nav\t: Adverb\nc\t: Conjunction\ni\t: Interjection')
+    print( 'n\t: Noun\npn\t: Pronoun\npp\t: Preposition\nv\t: Verb' )
+
+    decision = input('\n>> ').lower()
+
+    # If decision isn't in narrow list, assign decision None
+    # Sanitizing this input for all parts of speech would be obnoxious for
+    # me as an author and probably also as a user, so fuck it
+    # Enter them as is, or don't
+    if decision not in [ 'aj', 'av', 'c', 'i', 'n', 'pn', 'pp', 'v']:
+        print( 'Input part of speech not recognized.' )
+        decision = None
+
+    # Append decision, either as a part of speech, or as None, idgaf
+    attributeList.append( decision )
+    # Thus far, attribute list only contains gender and part of speech
+    # Add to working dataset
+    dataList.append( attributeList )
+
+    # The real meat, as about topic stuffs
+    decision = input( 'Is there topic metadata?\n>> ' ).lower()
+
+    # There's probably a way better way to do this than waiting for user to
+    # say 'END'
+    metadata = ''
+    if decision in [ 'y', 'ye', 'yes', 'yeah', 'yeet' ]:
+        # Literally just prompt user until they enter END
+        while metadata != 'END':
+            print( 'Input a new topic, or enter END to finish.' )
+            metadata = input( '>> ' )
+            # Kieckhafer would take my diploma from me for this
+            # if metadata != 'END', append metadata.lower(), otherwise don't do
+            # anything. I just didn't want to make an if and have to indent
+            # for only one line
+            topicList.append( metadata.lower() ) if metadata != 'END' else None
+
+    # Add topic stuffs to working dataset, now the final dataset
+    dataList.append( topicList )
+
+    # Print the English word entered
+    print( '\nENGLISH\n%s' % e )
+
+    # Print the Russian translation
+    print( '\nRUSSIAN\n%s' % dataList[0][0] )
+
+    # Print singular declension
+    print( '\nDECLENSION')
+    for key in dataList[1].keys():      # Iterate over the different cases
+        strip = dataList[1][key].count('-') # Keep track of the amount of -'s
+                                            # ( letters to get rid of )
+        print( key, ' : ', end = '' )       # Print just the case
+        if not strip is 0:                  # If there are -'s in the ending
+            # Print everything but the last few letters
+            print( r[:-1*strip], end = '' )
+        else:                               # If there are no -'s in the ending
+            print( r, end = '' )            # Print the whole word
+        # Finally, print the case-by-case ending
+        print( dataList[1][key][strip:] )
+
+    # Print the gender and part of speech, for now
+    print( '\nATTRIBUTES' )
+    for attribute in dataList[2]:
+        print( attribute )
+
+    # Print any user-added topic data
+    print( '\nTOPIC' )
+    for topic in dataList[3]:
+        print( topic )
+
+    # Ask user if the given information is correct
+    print( '\n\nIs this correct?' )
+    decision = input( '>> ' ).lower()
+
+    # Check if decision is affirmative
+    if decision in [ 'y', 'ye', 'yes', 'yeah', 'yeet' ]:
+        data.update( { e : dataList } )
+        update = True
+        print()
+    # If not, just completely drop it
+    # Probably a better way to do it, but I don't wanna nest everything
+    # in a while loop just yet
     else:
-        print( 'Are you sure you want to add (', e, ': [', r, '] ) ?' )
-    #print( m.split( ',' ) )
-
-
-    check = input().lower()
-    if check == 'yes':
-        data.update( { e : r } )
-        #fileUpdate('w')
-    else:
-        print('Add aborted')
-    print()
-
-
+        print( 'Add aborted.\n' )
 
 """
  ===============================================================================
@@ -346,7 +497,7 @@ def fileUpdate():
 def init():
     global data                         # Import data
     global maxLen                       # Import max length of english word
-    global caseNames                   # Import names of different cases
+    global caseNames                    # Import names of different cases
     
     # Open file in unicode 
     file = codecs.open( 'data.txt', encoding='utf-8' )
@@ -387,7 +538,7 @@ def init():
 
 """
  ===============================================================================
- Revn: 06-27-2019
+ Revn: 07-09-2019
  Func: Show all translation pairs that pertain to the input topic
  Meth: Iterate over all pairs *sigh* and see if the topic is tied to it
  Args: str topic: string to search all metadata for
@@ -404,12 +555,12 @@ def show( topic ):
 
     print( '\n', topic.upper(), '\n' )          # Print topic in all caps
     for key in data:                            # Iterate over all english words
-        for entry in data[key][3]:              # Iterate over associated data
-            if entry == topic:                  # If data matches input
-                print( key, end = '' )          # Print english word
-                for number in range(tabNum):    # Iterate by amnt. tabs needed
-                    print( '\t', end = '' )     # Print a tab, no newline
-                print( ':', data[key][0][0] )   # Print translation
+        # If data matches input, or user wants all entries
+        if topic in data[key][3] or topic == 'all':
+            print( key, end = '' )              # Print english word
+            for number in range( tabNum ):      # Iterate by amnt. tabs needed
+                print( '\t', end = '' )         # Print a tab, no newline
+            print( ':', data[key][0][0] )       # Print translation
 
     print()
 
@@ -422,6 +573,8 @@ def show( topic ):
 data = {}           # Master data container
 maxLen = 0          # Init max English word length, for formatted printing
 
+update = False      # Flag to enable file writeback if the data was updated
+
 ####
 #### Consider making cases a list...
 ####
@@ -433,8 +586,10 @@ helpM = 'What word do you want to look up?\nType HELP for help.\n>> '
 instr ='''Type ADD to add a new entry
 Type EDIT to edit an existing entry
 Type SHOW <topic> to show all entries relating to that topic
+Type SHOW all to dump all entries in the table
 Type EXIT or QUIT to close the program
-Type HELP to display this message'''
+Type HELP to display this message
+'''
 #Type CLS to clear the screen'''
 
 i = ''      # Init string to hold user input
@@ -443,7 +598,7 @@ i = ''      # Init string to hold user input
 ###
 ### BODY 
 ###
-###     Revn: 04-20-2019
+###     Revn: 07-09-2019
 ###     Func: main, continuously prompt user for english words
 ###     Meth: Loop until user says no, check input for commands, set input to
 ###           lowercase, search dictionary of 
@@ -457,11 +612,13 @@ try:
         i = input(helpM)    # Print help menu, take input
         if i in ['EXIT','E','STOP','QUIT','KILL']:  # Compare to stop signals
             exit()          # Exit if user entered stop signal
+            fileUpdate() if update else None    # Update datafile if need be
         if i == 'HELP':     # If the user needs help
             print(instr)    # Print in-depth help menu
             continue        # Skip to top of loop
-        if i == 'ADD':      # If user is trying to add
-            add()           # Begin add procedure
+        if i[:3] == 'ADD':  # If user is trying to add
+            # Grab first word if given, otherwise begin add procedure with no arg
+            add( i[4:].split(' ')[0] or None )
             continue        # Skip to top of loop
         if i == 'EDIT':     # If user wants to edit an entry
             edit()          # Begin edit procedure
@@ -480,6 +637,7 @@ try:
         else:               # If the user input is not in the dataset
             print('Entry', i, 'does not exist\n')
 except KeyboardInterrupt:
+    fileUpdate() if update else None    # Update datafile if need be
     exit()                  # EXEUNT
 
 ### ============================================================================
