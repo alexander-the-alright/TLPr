@@ -3,15 +3,20 @@
  ===============================================================================
  Auth: Sam Celani
  Prog: tlpr.py
- Revn: 07-11-2019  Ver 3.0
+ Revn: 08-08-2019  Ver 3.8
  Func: 
 
- TODO: COMMENTS
-       Write edit, delete, fadd, fedit, fdel
+ TODO: Standardize printed whitespace in edit submenu
+       Fix README for GitHub
+       COMMENTS
+       Write delete, fadd, fedit, fdel
        Add plural declension
+           Replace Attributes with Plural Declension, put contents of Attribute
+               into Topic
+       Digital notecard thing
+       Add commands to show() i.e. SHOW declension soup/суп
        Merge with original TLP, add switch between languages
        Add verb support
-       Reverse lookup
  ===============================================================================
  CHANGE LOG
  -------------------------------------------------------------------------------
@@ -47,7 +52,7 @@
                 tested init() and fileUpdate()
                 implemented maxLen in init() when reading words for format print
                 fixed bug where the first entry in a file can't be found
-                    in init(), see ord(eng[0]) > 256
+                    in init(), see ord( eng[0] ) > 256
                 show() is no longer showWIP() :)
                 SUCCESFULLY ADDED READ/WRITE OF METADATA
  07-03-2019:    begin rewriting add() to work with metadata, and correct auto
@@ -65,6 +70,36 @@
                 began adding comments to add()
 *07-11-2019:    replaced X with - as negative space character in add()
                 finished commenting add()
+ 07-14-2019:    began writing note()
+ 07-15-2019:    removed add function, placed in separate module
+                placed caseEngine in folder, updated import
+                fixed bug where exiting with EXIT command wouldn't update file
+                fixed topic data cutoff bug, in init()
+ 07-16-2019:    commented add()
+                wrote edit()
+ 07-24-2019:    commented edit()
+ 07-31-2019:    added reverse lookup functionality
+ 08-01-2019:    made show() search through attribute list as well, so user can
+                    search for masculine/feminine/nouns/etc.
+ 08-05-2019:    updated metadata1 description in Data Containment Format to show
+                    that capital X is no longer being used as the dropped letter
+                    character, but is now the hyphen (-)
+                changed metadata2 description in Data Containment Format to show
+                    genders being stored as the whole word, and not the first
+                    letter. Did not update Data Structure for lack of space
+ 08-08-2019:    imported lineCounter to print project size
+                added call to lineCounter.size() in show() with command
+                    'SHOW size'
+                added argument to edit() call to allow single-line command call,
+                    i.e. 'EDIT soup'
+                merged attribute and topic descriptions in the DATA CONTAINMENT
+                    FORMAT; metaData2 is now a dictionary of PLURAL declension
+                    to mirror metaData1, but plural
+                    
+                    NOTE: This doesn't entirely work for adjectives and verbs
+                          Try to find away to store ALL data in an efficient
+                          manner, such that the least amount of things are
+                          changed or wasted between different parts of speech
 
  ===============================================================================
  DATA CONTAINMENT FORMAT
@@ -89,7 +124,7 @@
 
      metaData1 will always be a dictionary containing the cases as keys and the
      ending as values. To denote that a letter is dropped, and not merely
-     added, the ending will contain a capital X before the appending hyphen.
+     added, the ending will contain a hyphen (-) for every letter dropped.
      The keys are hardcoded as follows.
          a      : accusative
          d      : dative
@@ -98,15 +133,21 @@
          n      : nominative
          p      : propositional
          
-     metaData2 will always contain firstly the gender of the word. Second is
-     the part of a speech. This is all that is strictly defined, more varies.
-         m      : Masculine
-         f      : Feminine
-         n      : Neuter
-         None   : Unknown
+     metaData2 will always be follow the same criterion as metaData1, but will
+     show the PLURAL declension, instead of the singlular declension.
 
-         The program will attempt to determine the gender and plural ending
-         when the user is inputting the data, but the user can override.
+     metaData3 begins the topic and attribute data. This will contain things like
+     the part of speech, gender, and the animateness as attributes, as well as
+     other characteristics that make the word irregular in some way. metaData3
+     will also contain words like "animal", etc. for use with SHOW command.
+
+         masculine      : Masculine
+         feminine       : Feminine
+         neuter         : Neuter
+         None           : Unknown or not applicable
+
+         The program will attempt to determine the gender and declension
+         when the user is adding the data, but the user can override.
 
          aj     : Adjective
          av     : Adverb
@@ -116,7 +157,4 @@
          pn     : Pronoun
          pp     : Preposition
          v      : Verb
-         
-     metaData3 begins the topic data. This will contain things like "animal",
-     etc. for use with SHOW command
 

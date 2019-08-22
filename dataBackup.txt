@@ -3,3 +3,4 @@ mom|мама|Xу,Xе,Xы,й,,Xе|feminine,n|family,person,woman
 window|окно|,у,а,ом,,е|neuter,n|house
 cat|кошка|Xу,Xе,Xи,Xой,,Xе|feminine,n|animal,kneesaa
 tomcat|кот|,у,а,ом,,е|masculine,n|animal
+

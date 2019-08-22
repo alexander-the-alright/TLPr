@@ -2,11 +2,12 @@ readme = """
  ===============================================================================
  Auth: Sam Celani
  Prog: caseEngine.py
- Revn: 07-11-2019 Ver 0.4
+ Revn: 07-11-2019 Ver 1.0
  Func: Takes in a Russian word, parses it, determines the gender, spits out the
        general case-by-case transformations
 
  TODO: write in a way to update soft lists
+       specify first, second, and third declension
  ===============================================================================
  CHANGE LOG
  -------------------------------------------------------------------------------
@@ -15,6 +16,7 @@ readme = """
  06-04-2019:    wrote endings()
  07-09-2019:    changed m, f, and n to masculine, feminine, and neuter
  07-11-2019:    replaced X with - as negative space character in endings()
+*08-22-2019:
 
  ===============================================================================
 """
@@ -40,21 +42,21 @@ masc = { 'a' : '',
 
 # Dictionary of cases and their respective endings for feminine nouns
 # Capital X's signify letters to be removed from the root
-fem  = { 'a' : 'Xу',
-         'd' : 'Xе',
-         'g' : 'Xи',
-         'i' : 'Xой',
+fem  = { 'a' : '-у',
+         'd' : '-е',
+         'g' : '-и',
+         'i' : '-ой',
          'n' : '',
-         'p' : 'Xе' }
+         'p' : '-е' }
 
 # Dictionary of cases and their respective endings for neuter nouns
 # Capital X's signify letters to be removed from the root
 neut = { 'a' : '',
-         'd' : 'Xу',
-         'g' : 'Xа',
-         'i' : 'Xом',
+         'd' : '-у',
+         'g' : '-а',
+         'i' : '-ом',
          'n' : '',
-         'p' : 'Xе' }
+         'p' : '-е' }
 
 # ==============================================================================
 #
@@ -158,7 +160,7 @@ try:                                # Wrap in try-catch for CTRL-C
         parse( input( '>> ' ) )     # Print line start chars, call first func
 except KeyboardInterrupt:           # Wait for CTRL-C
     exit()                          # EXEUNT
-"""
+#"""
 
 ### ============================================================================
 
